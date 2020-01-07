@@ -1,38 +1,37 @@
 const fs = require("fs");
 const csv = fs.readFileSync("./kayak.csv").toString();
 
-const geoJson = csv
+const values = csv
   .split("\n")
   .filter(x => !!x)
-  .reduce(
-    (prev, line, index) => {
-      if (index === 0) {
-        return prev;
-      }
-      const [timestamp, latitude, longitude, altitude] = line.split(",");
+  .map(line => {
+    const [timestamp, latitude, longitude, altitude] = line
+      .split(",")
+      .map(value => parseFloat(value));
+    return { latitude, longitude };
+  });
 
-      const point = {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [longitude, latitude]
-        },
-        properties: {
-          timestamp,
-          altitude
-        }
-      };
-      prev.features.push(point);
+values.sort((a, b) => a.timestamp - b.timestamp);
+
+const geoJson = values.reduce(
+  (prev, { latitude, longitude }, index) => {
+    if (index === 0) {
       return prev;
-    },
-    {
-      type: "featureCollections",
-      features: []
     }
-  );
+    const point = [longitude, latitude];
 
-geoJson.features.sort(
-  (a, b) => a.properties.timestamp - b.properties.timestamp
+    prev.features[0].coordinates.push(point);
+    return prev;
+  },
+  {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "LineString",
+        coordinates: []
+      }
+    ]
+  }
 );
 
 fs.writeFileSync("./kayak.geojson", JSON.stringify(geoJson));
